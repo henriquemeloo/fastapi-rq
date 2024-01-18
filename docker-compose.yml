@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: --reload --host 0.0.0.0
+    volumes:
+      - ./:/app:ro
+
+  worker:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: rq worker --url redis://redis:6379 default
+    volumes:
+      - ./:/app:ro
+
+  redis:
+    image: redis:6.2
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+  
+  dashboard:
+    build:
+      dockerfile: dashboard.Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: -p 8005 -u redis://redis:6379
+    ports:
+      - "8005:8005"
